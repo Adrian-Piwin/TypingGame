@@ -3,6 +3,16 @@ body{
     color: white;
 }
 
+#textPrompt{
+    position: absolute;
+    left: 50%;
+    top: 100px;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 100px;
+    font-weight: bold;
+}
+
 #keyboard{
     height: 500px;
     width: 1500px;
@@ -35,4 +45,37 @@ body{
 
 .selected{
     border: 2px red solid !important;
+    animation: infectedKeyAnim ease-in-out 0.5s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+.pressed{
+    animation: pressedKeyAnim ease-in-out 0.25s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+@keyframes infectedKeyAnim {
+    0% {
+        transform: scale(1);
+    }
+    50%{
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+     }
+}
+
+@keyframes pressedKeyAnim {
+    0% {
+        transform: translateY(0);
+    }
+    50%{
+        transform: translateY(12px);
+    }
+    100% {
+        transform: translateY(0);
+     }
 }
