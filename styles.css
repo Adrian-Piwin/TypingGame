@@ -1,0 +1,38 @@
+body{
+    background-color: rgb(31, 31, 31);
+    color: white;
+}
+
+#keyboard{
+    height: 500px;
+    width: 1500px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.row{
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.key{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100px;
+    height: 120px;
+    border: 2px white solid;
+    border-radius: 15px;
+    text-align: center;
+    font-size: 40px;
+}
+
+.selected{
+    border: 2px red solid !important;
+}
