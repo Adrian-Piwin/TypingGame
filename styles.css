@@ -41,6 +41,8 @@ body{
     border-radius: 15px;
     text-align: center;
     font-size: 40px;
+
+    transition: 0.25s;
 }
 
 .selected{
@@ -51,9 +53,7 @@ body{
 }
 
 .pressed{
-    animation: pressedKeyAnim ease-in-out 0.25s;
-    animation-iteration-count: 1;
-    animation-fill-mode: forwards;
+    transform: translateY(12px) !important;
 }
 
 @keyframes infectedKeyAnim {
@@ -65,17 +65,5 @@ body{
     }
     100% {
         transform: scale(1);
-     }
-}
-
-@keyframes pressedKeyAnim {
-    0% {
-        transform: translateY(0);
-    }
-    50%{
-        transform: translateY(12px);
-    }
-    100% {
-        transform: translateY(0);
      }
 }

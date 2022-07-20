@@ -6,10 +6,23 @@ window.addEventListener("load", function(event) {
 
     /* ==== GAME VARIABLES ====*/ 
 
+    // ALl keys
     var keyList = [
         'q','w','e','r','t','y','u','i','o','p',
         'a','s','d','f','g','h','j','k','l',';',
         'z','x','c','v','b','n','m',',','.','/'
+    ]
+
+    // Section of keys per finger
+    var keySectionList = [
+        ['q','a','z'],
+        ['w','s','x'],
+        ['e','d','c'],
+        ['r','f','v','t','g','b'],
+        ['y','h','n','u','j','m'],
+        ['i','k',','],
+        ['o','l','.'],
+        ['p',';','/']
     ]
 
     var selectedKeyList = []
@@ -27,18 +40,26 @@ window.addEventListener("load", function(event) {
     /* ==== GET KEY AND VERIFY VALID ====*/ 
 
     document.onkeydown = function (e) {
-        VerifyInput(e.key);
+        VerifyInput(e.key, true);
     };
 
-    function VerifyInput(key){
-        if (keyList.includes(key) || key == 'Enter')
+    document.onkeyup = function (e) {
+        VerifyInput(e.key, false);
+    };
+
+    // Verify correct input pressed, and
+    // whether its on down or up
+    function VerifyInput(key, isDown){
+        if ((keyList.includes(key) || key == 'Enter') && isDown)
             KeyPressed(key);
+        else if (keyList.includes(key) && !isDown)
+            KeyUnpressed(key);
     }
 
     /* ==== GAME ====*/ 
 
     // Start game on enter
-    // Handle key input when playing game
+    // Handle key input
     function KeyPressed(key){
         if (!gameRunnning && key == 'Enter'){
             isTyping = false;
@@ -57,7 +78,12 @@ window.addEventListener("load", function(event) {
             DeselectKey(key);
         }
 
-        PressKey(key);
+        FindKeyElem(key).classList.add('pressed');
+    }
+
+    // Handle key being unpressed
+    function KeyUnpressed(key){
+        FindKeyElem(key).classList.remove('pressed');
     }
 
     // Handle starting game
@@ -115,7 +141,7 @@ window.addEventListener("load", function(event) {
 
     function SelectKey(){
         // Filter already selected keys from key list
-        var newKeyList = filterArray(keyList, selectedKeyList);
+        var newKeyList = GetValidKeyList();
 
         // If all keys selected, lose
         if (newKeyList.length == 0){
@@ -142,15 +168,18 @@ window.addEventListener("load", function(event) {
             keyElm.classList.remove('selected');
     }
 
-    function PressKey(key){
-        // Show effect for pressing key
-        let keyElm = FindKeyElem(key);
-        if (keyElm != null){
-            keyElm.classList.add('pressed');
-            setTimeout(function () {
-                keyElm.classList.remove('pressed');
-            }, 250);
+    // Returns list of valid keys that can be selected
+    function GetValidKeyList(){
+        let tempList = keyList;
+        for (i = 0; i < selectedKeyList.length; i++){
+            for (ind = 0; ind < keySectionList.length; ind++){
+                if (keySectionList[ind].includes(selectedKeyList[i])){
+                    tempList = filterArray(tempList, keySectionList[ind])
+                }
+            }
         }
+
+        return tempList;
     }
 
     // Returns key element from key string
