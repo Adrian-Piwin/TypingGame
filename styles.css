@@ -42,12 +42,24 @@ body{
     text-align: center;
     font-size: 40px;
 
-    transition: 0.25s;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 50%, red 50%) top;
+    background-size: 200% 200%;
+    transition: 0.2s ease-out;;
 }
 
 .selected{
-    border: 2px red solid !important;
-    animation: infectedKeyAnim ease-in-out 0.5s;
+    border: 2px red solid;
+    color: red;
+    
+    animation: selectedKeyAnim ease-in-out 0.5s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+}
+
+.selectedHold{
+    background-position: bottom;
+    
+    animation: selectedKeyAnim ease-in-out 0.5s;
     animation-iteration-count: 1;
     animation-fill-mode: forwards;
 }
@@ -56,7 +68,7 @@ body{
     transform: translateY(12px) !important;
 }
 
-@keyframes infectedKeyAnim {
+@keyframes selectedKeyAnim {
     0% {
         transform: scale(1);
     }

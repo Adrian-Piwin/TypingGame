@@ -25,7 +25,8 @@ window.addEventListener("load", function(event) {
         ['p',';','/']
     ]
 
-    var selectedKeyList = []
+    var keyObjList = [];
+
     var gameRunnning = false;
     var isTyping = false;
 
@@ -50,43 +51,36 @@ window.addEventListener("load", function(event) {
     // Verify correct input pressed, and
     // whether its on down or up
     function VerifyInput(key, isDown){
-        if ((keyList.includes(key) || key == 'Enter') && isDown)
-            KeyPressed(key);
+        if (key == 'Enter' && isDown)
+            ToggleGame();
+        else if (keyList.includes(key) && isDown)
+            FindKeyObj(key).OnPressDown();
         else if (keyList.includes(key) && !isDown)
-            KeyUnpressed(key);
+            FindKeyObj(key).OnPressUp();
     }
 
     /* ==== GAME ====*/ 
 
-    // Start game on enter
-    // Handle key input
-    function KeyPressed(key){
-        if (!gameRunnning && key == 'Enter'){
+    // Handle game start/stop
+    function ToggleGame(){
+        // Start Game if not running
+        if (!gameRunnning){
             isTyping = false;
             gameRunnning = true;
             textPrompt.innerHTML = '';
             ResetKeys();
             Game();
         }
-        else if (gameRunnning && key == 'Enter'){
+        // End game if running
+        else if (gameRunnning){
             isTyping = false;
             gameRunnning = false;
             EnterPromptText(startingStr);
             ResetKeys();
         }
-        else if (gameRunnning){
-            DeselectKey(key);
-        }
-
-        FindKeyElem(key).classList.add('pressed');
     }
 
-    // Handle key being unpressed
-    function KeyUnpressed(key){
-        FindKeyElem(key).classList.remove('pressed');
-    }
-
-    // Handle starting game
+    // Handle game
     function Game(){
         if (gameRunnning == false) return;
 
@@ -104,9 +98,10 @@ window.addEventListener("load", function(event) {
     }
 
     function ResetKeys(){
-        // Unselect all keys
-        for (i = 0; i < keyElements.length; i++){
-            keyElements.item(i).classList.remove('selected');
+        // Unselect selected keys
+        for (i = 0; i < keyObjList.length; i++){
+            if (keyObjList[i].isSelected)
+                keyObjList[i].DeselectKey();
         }
 
         // Clear list
@@ -141,39 +136,28 @@ window.addEventListener("load", function(event) {
 
     function SelectKey(){
         // Filter already selected keys from key list
-        var newKeyList = GetValidKeyList();
+        let newKeyList = GetValidKeyList();
 
         // If all keys selected, lose
         if (newKeyList.length == 0){
             Lose();
+            return;
         }
         
         // Select random key  
         let selKey = newKeyList[Math.floor(Math.random() * newKeyList.length)];
-
-        // Add selected class to key
-        selectedKeyList.push(selKey);
-        let selKeyElm = FindKeyElem(selKey);
-        if (selKeyElm != null)
-            selKeyElm.classList.add('selected');
-    }
-
-    function DeselectKey(key){
-        // Remove key from list
-        selectedKeyList = selectedKeyList.filter(e => e !== key);
-
-        // Remove selected class from key
-        let keyElm = FindKeyElem(key);
-        if (keyElm != null)
-            keyElm.classList.remove('selected');
+        let isHold = Math.floor(Math.random() * 2) == 0 ? true : false;
+        FindKeyObj(selKey).SelectKey(isHold);
     }
 
     // Returns list of valid keys that can be selected
     function GetValidKeyList(){
         let tempList = keyList;
-        for (i = 0; i < selectedKeyList.length; i++){
+        for (i = 0; i < keyObjList.length; i++){
+            if (!keyObjList[i].isSelected) continue;
+
             for (ind = 0; ind < keySectionList.length; ind++){
-                if (keySectionList[ind].includes(selectedKeyList[i])){
+                if (keySectionList[ind].includes(keyObjList[i].letter)){
                     tempList = filterArray(tempList, keySectionList[ind])
                 }
             }
@@ -181,6 +165,8 @@ window.addEventListener("load", function(event) {
 
         return tempList;
     }
+
+    /* ==== UTILITY FUNCTIONS ====*/ 
 
     // Returns key element from key string
     // Returns null if key not found
@@ -194,7 +180,14 @@ window.addEventListener("load", function(event) {
         return null;
     }
 
-    /* ==== UTILITY FUNCTIONS ====*/ 
+    // Return key obj that matches letter
+    function FindKeyObj(letter){
+        for (i = 0; i < keyObjList.length; i++){
+            if (keyObjList[i].letter == letter)
+                return keyObjList[i];
+        }
+        return null;
+    }
 
     // Filter array from another
     const filterArray = (arr1, arr2) => {
@@ -204,5 +197,105 @@ window.addEventListener("load", function(event) {
         return filtered;
     };
 
+    /* ==== SETUP FUNCTIONS ====*/ 
+
+    function SetupKeys(){
+        for (i = 0; i < keyList.length; i++){
+            keyObjList.push(new Key(keyList[i], FindKeyElem(keyList[i])));
+        }
+    }
+
+    SetupKeys();
     EnterPromptText(startingStr);
 });
+
+/* ==== KEY OBJECT ====*/ 
+
+function Key(letter, element){
+    this.letter = letter;
+    this.element = element;
+
+    this.isSelected = false;
+    this.isHoldType = false;
+    this.timeToHoldKey = 0.25;
+    this.startTime = 0;
+    this.defaultTransition = this.element.style.transition;
+
+    // On key down
+    this.OnPressDown = function(){
+        this.element.classList.add('pressed');
+
+        // Handle when start of holding key
+        if (this.isSelected && this.isHoldType && this.startTime == 0){
+            // Start transition for holding key with default value
+            this.element.style.transition = this.timeToHoldKey + 's ease-out';
+            this.element.classList.remove('selectedHold');
+
+            // Start holding timer
+            this.startTime = Date.now();
+            this.TimerCheck();
+        }
+        else if (this.isSelected && !this.isHoldType){
+            this.DeselectKey();
+        }
+    }
+
+    // On key up
+    this.OnPressUp = function(){
+        this.element.classList.remove('pressed');
+
+        // If selected and hold type, letting go stops process
+        if (this.isSelected && this.isHoldType){
+
+            this.element.style.transition = this.defaultTransition;
+            this.element.classList.add('selectedHold');
+
+            this.startTime = 0;
+        }
+
+    }
+
+    // Select key as normal or hold
+    this.SelectKey = function(isHold){
+        if (this.isSelected) return;
+
+        // Select key as hold key
+        if (isHold){
+            this.element.classList.add('selectedHold');
+            this.isHoldType = true;
+        // Select key
+        }else{
+            this.element.classList.add('selected');
+        }
+
+        this.isSelected = true;
+    }
+
+    // Deselect key
+    this.DeselectKey = function(){
+        this.element.style.transition = this.defaultTransition;
+        this.element.classList.remove('selectedHold');
+        this.element.classList.remove('selected');
+
+        this.isSelected = false;
+        this.isHoldType = false;
+        this.startTime = 0;
+    }
+
+    // Check on completed timer
+    this.TimerCheck = function(){
+        var _this = this;
+        setTimeout(function () {
+            // Hold was interrupted
+            if (_this.startTime == 0)
+                return;
+
+            // Successfully held key for full time
+            if (((Date.now() - _this.startTime) / 1000) >= _this.timeToHoldKey){
+                _this.DeselectKey();
+                _this.startTime = 0;
+            }
+            
+        }, _this.timeToHoldKey * 1000);
+    }
+}
