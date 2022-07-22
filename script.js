@@ -1,20 +1,43 @@
 window.addEventListener("load", function(event) {
-    /* ==== REFERENCES ====*/ 
+   
+    /* ==== GAME ====*/ 
+    var utilityObj = new Utility();
+    var textPromptObj = new TextPrompt();
+    var gameObj = new Game(utilityObj,textPromptObj);
+    gameObj.Game();
 
-    var keyElements = document.getElementsByClassName('key');
-    var textPrompt = document.getElementById('textPrompt');
+    /* ==== GET KEY AND SEND TO GAME ====*/ 
+    document.onkeydown = function (e) {
+        gameObj.VerifyInput(e.key, true);
+    };
 
-    /* ==== GAME VARIABLES ====*/ 
+    document.onkeyup = function (e) {
+        gameObj.VerifyInput(e.key, false);
+    };
+});
+
+/* ==== GAME OBJECT ====*/ 
+
+function Game(utilityObj, textPromptObj){
+    this.utilityObj = utilityObj;
+    this.textPromptObj = textPromptObj;
+
+    this.gameRunnning = false;
+    this.selectKeyInterval = 1;
+    this.selectedKeyList = [];
+    this.keyObjList = [];
+    this.keyElements = document.getElementsByClassName('key');
+    this.intervalID;
 
     // ALl keys
-    var keyList = [
+    this.keyList = [
         'q','w','e','r','t','y','u','i','o','p',
         'a','s','d','f','g','h','j','k','l',';',
-        'z','x','c','v','b','n','m',',','.','/'
+        'z','x','c','v','b','n','m',',','.','/',' '
     ]
 
     // Section of keys per finger
-    var keySectionList = [
+    this.keySectionList = [
         ['q','a','z'],
         ['w','s','x'],
         ['e','d','c'],
@@ -22,143 +45,100 @@ window.addEventListener("load", function(event) {
         ['y','h','n','u','j','m'],
         ['i','k',','],
         ['o','l','.'],
-        ['p',';','/']
+        ['p',';','/'],
+        [' ']
     ]
 
-    var keyObjList = [];
+    // Initilize game
+    this.Game = function(){
+        this.textPromptObj.EnterPromptText('press enter');
 
-    var gameRunnning = false;
-    var isTyping = false;
-
-    /* ==== VARIABLES ====*/ 
-
-    var startingStr = 'press enter'
-    var lostStr = 'you lose'
-
-    var selectKeyInterval = 1000;
-    var typePromptInterval = 100;
-
-    /* ==== GET KEY AND VERIFY VALID ====*/ 
-
-    document.onkeydown = function (e) {
-        VerifyInput(e.key, true);
-    };
-
-    document.onkeyup = function (e) {
-        VerifyInput(e.key, false);
-    };
+        // Create key objects
+        for (i = 0; i < this.keyList.length; i++){
+            this.keyObjList.push(new Key(this.keyList[i], 
+                this.keyList[i] == ' ' ? this.FindKeyElem('SPACE') : this.FindKeyElem(this.keyList[i]),
+                this));
+        }
+    }
 
     // Verify correct input pressed, and
     // whether its on down or up
-    function VerifyInput(key, isDown){
+    this.VerifyInput = function(key, isDown){
         if (key == 'Enter' && isDown)
-            ToggleGame();
-        else if (keyList.includes(key) && isDown)
-            FindKeyObj(key).OnPressDown();
-        else if (keyList.includes(key) && !isDown)
-            FindKeyObj(key).OnPressUp();
+            this.gameRunnning == false ? this.StartGame() : this.EndGame();
+        else if (this.keyList.includes(key) && isDown)
+            this.FindKeyObj(key).OnPressDown();
+        else if (this.keyList.includes(key) && !isDown)
+            this.FindKeyObj(key).OnPressUp();
     }
 
-    /* ==== GAME ====*/ 
+    // Reset game, start game loop
+    this.StartGame = function(){
+        this.ResetKeys();
+        this.textPromptObj.isTyping = false;
+        this.textPromptObj.element.innerHTML = '';
+        this.gameRunnning = true;
 
-    // Handle game start/stop
-    function ToggleGame(){
-        // Start Game if not running
-        if (!gameRunnning){
-            isTyping = false;
-            gameRunnning = true;
-            textPrompt.innerHTML = '';
-            ResetKeys();
-            Game();
-        }
-        // End game if running
-        else if (gameRunnning){
-            isTyping = false;
-            gameRunnning = false;
-            EnterPromptText(startingStr);
-            ResetKeys();
-        }
+        // Select new key on interval
+        this.intervalID = setInterval(() => {
+            this.SelectRandomKey();
+        }, this.selectKeyInterval * 1000);
     }
 
-    // Handle game
-    function Game(){
-        if (gameRunnning == false) return;
-
-        SelectKey();
-
-        setTimeout(function () {
-            Game();
-        }, selectKeyInterval);
-    }
-    
-    // Handle losing game
-    function Lose(){
-        EnterPromptText(lostStr);
-        gameRunnning = false;
+    // Stop game loop on loss
+    this.LoseGame = function(){
+        this.gameRunnning = false;
+        this.textPromptObj.EnterPromptText('you lose');
+        clearInterval(this.intervalID);
     }
 
-    function ResetKeys(){
+    // Stop game loop on demand
+    this.EndGame = function(){
+        this.gameRunnning = false;
+        this.textPromptObj.EnterPromptText('press enter');
+        this.ResetKeys();
+        clearInterval(this.intervalID);
+    }
+
+    // Reset selected keys
+    this.ResetKeys = function(){
         // Unselect selected keys
-        for (i = 0; i < keyObjList.length; i++){
-            if (keyObjList[i].isSelected)
-                keyObjList[i].DeselectKey();
+        for (i = 0; i < this.keyObjList.length; i++){
+            if (this.keyObjList[i].isSelected)
+                this.keyObjList[i].DeselectKey();
         }
 
         // Clear list
-        selectedKeyList = [];
+        this.selectedKeyList = [];
     }
 
-    /* ==== TEXT FUNCTIONS ====*/ 
+    // Select a random key
+    this.SelectRandomKey = function(){
+        if (!this.gameRunnning) return;
 
-    // Enter text letter by letter, with an interval
-    function EnterPromptText(text, textIndex=0){
-        if (textIndex == 0)
-            isTyping = true;
-        if (text.length == textIndex) {
-            isTyping = false;
-            return;
-        }
-        if (!isTyping){
-            textPrompt.innerHTML = '';
-            return;
-        }
-
-        let newText = textPrompt.innerHTML;
-        newText += text[textIndex];
-        textPrompt.innerHTML = newText;
-
-        setTimeout(function () {
-            EnterPromptText(text, textIndex+1);
-        }, typePromptInterval);
-    }
-
-    /* ==== KEY FUNCTIONS ====*/ 
-
-    function SelectKey(){
         // Filter already selected keys from key list
-        let newKeyList = GetValidKeyList();
+        let newKeyList = this.GetValidKeyList();
 
-        // If all keys selected, lose
+        // If all keys selected, don't select 
         if (newKeyList.length == 0){
-            Lose();
             return;
         }
         
         // Select random key  
         let selKey = newKeyList[Math.floor(Math.random() * newKeyList.length)];
-        let isHold = Math.floor(Math.random() * 2) == 0 ? true : false;
-        FindKeyObj(selKey).SelectKey(isHold);
+        this.FindKeyObj(selKey).SelectKey();
     }
 
     // Returns list of valid keys that can be selected
-    function GetValidKeyList(){
-        let tempList = keyList;
-        for (i = 0; i < keyObjList.length; i++){
-            if (!keyObjList[i].isSelected) continue;
+    this.GetValidKeyList = function(){
+        let tempList = this.keyList;
+        for (i = 0; i < this.keyObjList.length; i++){
+            if (!this.keyObjList[i].isSelected) continue;
 
-            for (ind = 0; ind < keySectionList.length; ind++){
-                if (keySectionList[ind].includes(keyObjList[i].letter)){
-                    tempList = filterArray(tempList, keySectionList[ind])
+            for (ind = 0; ind < this.keySectionList.length; ind++){
+                if (this.keySectionList[ind].includes(this.keyObjList[i].letter)){
+                    tempList = this.utilityObj.filterArray(tempList, this.keySectionList[ind])
+                    continue;
                 }
             }
         }
@@ -166,76 +146,44 @@ window.addEventListener("load", function(event) {
         return tempList;
     }
 
-    /* ==== UTILITY FUNCTIONS ====*/ 
+    // Return key obj that matches letter
+    this.FindKeyObj = function(letter){
+        for (i = 0; i < this.keyObjList.length; i++){
+            if (this.keyObjList[i].letter == letter)
+                return this.keyObjList[i];
+        }
+        return null;
+    }
 
-    // Returns key element from key string
-    // Returns null if key not found
-    function FindKeyElem(key){
-        for (i = 0; i < keyElements.length; i++){
-            if (keyElements.item(i).innerHTML == key.toUpperCase()){
-                return keyElements[i]
+    // Returns key element that matches letter
+    this.FindKeyElem = function(letter){
+        for (i = 0; i < this.keyElements.length; i++){
+            if (this.keyElements.item(i).innerHTML.toUpperCase() == letter.toUpperCase()){
+                return this.keyElements[i]
             }
         }
 
         return null;
     }
-
-    // Return key obj that matches letter
-    function FindKeyObj(letter){
-        for (i = 0; i < keyObjList.length; i++){
-            if (keyObjList[i].letter == letter)
-                return keyObjList[i];
-        }
-        return null;
-    }
-
-    // Filter array from another
-    const filterArray = (arr1, arr2) => {
-        const filtered = arr1.filter(el => {
-        return arr2.indexOf(el) === -1;
-        });
-        return filtered;
-    };
-
-    /* ==== SETUP FUNCTIONS ====*/ 
-
-    function SetupKeys(){
-        for (i = 0; i < keyList.length; i++){
-            keyObjList.push(new Key(keyList[i], FindKeyElem(keyList[i])));
-        }
-    }
-
-    SetupKeys();
-    EnterPromptText(startingStr);
-});
+}
 
 /* ==== KEY OBJECT ====*/ 
 
-function Key(letter, element){
+function Key(letter, element, gameObj){
     this.letter = letter;
     this.element = element;
-
+    this.gameObj = gameObj;
     this.isSelected = false;
-    this.isHoldType = false;
-    this.timeToHoldKey = 0.25;
-    this.startTime = 0;
-    this.defaultTransition = this.element.style.transition;
+    this.timer = 3;
+    this.defaultTransition = 0.2;
+    this.timerID;
 
     // On key down
     this.OnPressDown = function(){
         this.element.classList.add('pressed');
 
-        // Handle when start of holding key
-        if (this.isSelected && this.isHoldType && this.startTime == 0){
-            // Start transition for holding key with default value
-            this.element.style.transition = this.timeToHoldKey + 's ease-out';
-            this.element.classList.remove('selectedHold');
-
-            // Start holding timer
-            this.startTime = Date.now();
-            this.TimerCheck();
-        }
-        else if (this.isSelected && !this.isHoldType){
+        // Check if can deselect key
+        if (this.isSelected){
             this.DeselectKey();
         }
     }
@@ -243,59 +191,80 @@ function Key(letter, element){
     // On key up
     this.OnPressUp = function(){
         this.element.classList.remove('pressed');
-
-        // If selected and hold type, letting go stops process
-        if (this.isSelected && this.isHoldType){
-
-            this.element.style.transition = this.defaultTransition;
-            this.element.classList.add('selectedHold');
-
-            this.startTime = 0;
-        }
-
     }
 
-    // Select key as normal or hold
-    this.SelectKey = function(isHold){
-        if (this.isSelected) return;
-
-        // Select key as hold key
-        if (isHold){
-            this.element.classList.add('selectedHold');
-            this.isHoldType = true;
-        // Select key
-        }else{
-            this.element.classList.add('selected');
-        }
-
+    // Select key
+    this.SelectKey = function(){
         this.isSelected = true;
+
+        this.element.style.transition = this.timer + 's ease-out';
+        this.element.classList.add('selected');
+        // Start timer
+        this.StartTimer()
     }
 
     // Deselect key
     this.DeselectKey = function(){
-        this.element.style.transition = this.defaultTransition;
-        this.element.classList.remove('selectedHold');
-        this.element.classList.remove('selected');
-
         this.isSelected = false;
-        this.isHoldType = false;
-        this.startTime = 0;
-    }
 
-    // Check on completed timer
-    this.TimerCheck = function(){
-        var _this = this;
-        setTimeout(function () {
-            // Hold was interrupted
-            if (_this.startTime == 0)
-                return;
+        this.element.style.transition = this.defaultTransition + 's ease-out';
+        this.element.classList.remove('selected');
+        this.element.classList.remove('lossResult');
+        // Cancel timer
+        clearTimeout(this.timerID)
+    }   
 
-            // Successfully held key for full time
-            if (((Date.now() - _this.startTime) / 1000) >= _this.timeToHoldKey){
-                _this.DeselectKey();
-                _this.startTime = 0;
+    // Start timer after being selected
+    // Lose game if key is still selected after timer ends
+    this.StartTimer = function(){
+        _this = this;
+        this.timerID = setTimeout(() => {
+            if (this.isSelected && this.gameObj.gameRunnning){
+                this.gameObj.LoseGame();
+                this.element.classList.add('lossResult');
             }
-            
-        }, _this.timeToHoldKey * 1000);
+        }, this.timer * 1000);
     }
+}
+
+/* ==== TEXT PROMPT OBJECT ====*/ 
+
+function TextPrompt(){
+    this.isTyping = false;
+    this.typePromptInterval = 100;
+    this.element = document.getElementById('textPrompt');
+
+    // Enter text letter by letter, with an interval
+    this.EnterPromptText = function(text, textIndex=0){
+        if (textIndex == 0)
+            this.isTyping = true;
+        if (text.length == textIndex) {
+            this.isTyping = false;
+            return;
+        }
+        if (!this.isTyping){
+            this.element.innerHTML = '';
+            return;
+        }
+
+        let newText = this.element.innerHTML;
+        newText += text[textIndex];
+        this.element.innerHTML = newText;
+
+        setTimeout(() => {
+            this.EnterPromptText(text, textIndex+1);
+        }, this.typePromptInterval);
+    }
+}
+
+/* ==== UTILITY OBJECT ====*/ 
+
+function Utility(){
+    // Filter array from another
+    this.filterArray = function(arr1, arr2){
+        const filtered = arr1.filter(el => {
+        return arr2.indexOf(el) === -1;
+        });
+        return filtered;
+    };
 }
