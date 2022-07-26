@@ -1,10 +1,8 @@
 window.addEventListener("load", function(event) {
    
     /* ==== GAME ====*/ 
-    var utilityObj = new Utility();
-    var textPromptObj = new TextPrompt();
-    var gameObj = new Game(utilityObj,textPromptObj);
-    gameObj.Game();
+    var gameObj = new Game();
+    gameObj.Initialize();
 
     /* ==== GET KEY AND SEND TO GAME ====*/ 
     document.onkeydown = function (e) {
@@ -18,16 +16,20 @@ window.addEventListener("load", function(event) {
 
 /* ==== GAME OBJECT ====*/ 
 
-function Game(utilityObj, textPromptObj){
-    this.utilityObj = utilityObj;
-    this.textPromptObj = textPromptObj;
+function Game(){
+    this.playerObj;
+    this.utilityObj;
+    this.textPromptObj;
 
     this.gameRunnning = false;
-    this.selectKeyInterval = 1;
     this.selectedKeyList = [];
     this.keyObjList = [];
-    this.keyElements = document.getElementsByClassName('key');
+    this.keyElements;
     this.intervalID;
+
+    // Game settings
+    this.timeToHitKey = 3;
+    this.selectKeyInterval = 1;
 
     // ALl keys
     this.keyList = [
@@ -49,15 +51,21 @@ function Game(utilityObj, textPromptObj){
         [' ']
     ]
 
-    // Initilize game
-    this.Game = function(){
-        this.textPromptObj.EnterPromptText('press enter');
+    // Initialize game
+    this.Initialize = function(){
+        this.playerObj = new Player(this);
+        this.utilityObj = new Utility();
+        this.textPromptObj = new TextPrompt(document.getElementById('textPrompt'));
+        this.keyElements = document.getElementsByClassName('key');
+
+        this.textPromptObj.EnterText('press enter');
 
         // Create key objects
         for (i = 0; i < this.keyList.length; i++){
-            this.keyObjList.push(new Key(this.keyList[i], 
+            this.keyObjList.push(new Key(this,
+                this.keyList[i], 
                 this.keyList[i] == ' ' ? this.FindKeyElem('SPACE') : this.FindKeyElem(this.keyList[i]),
-                this));
+                this.timeToHitKey));
         }
     }
 
@@ -75,8 +83,7 @@ function Game(utilityObj, textPromptObj){
     // Reset game, start game loop
     this.StartGame = function(){
         this.ResetKeys();
-        this.textPromptObj.isTyping = false;
-        this.textPromptObj.element.innerHTML = '';
+        this.textPromptObj.ClearText();
         this.gameRunnning = true;
 
         // Select new key on interval
@@ -88,14 +95,14 @@ function Game(utilityObj, textPromptObj){
     // Stop game loop on loss
     this.LoseGame = function(){
         this.gameRunnning = false;
-        this.textPromptObj.EnterPromptText('you lose');
+        this.textPromptObj.EnterText('you lose');
         clearInterval(this.intervalID);
     }
 
     // Stop game loop on demand
     this.EndGame = function(){
         this.gameRunnning = false;
-        this.textPromptObj.EnterPromptText('press enter');
+        this.textPromptObj.EnterText('press enter');
         this.ResetKeys();
         clearInterval(this.intervalID);
     }
@@ -167,16 +174,61 @@ function Game(utilityObj, textPromptObj){
     }
 }
 
+/* ==== PLAYER OBJECT ====*/
+
+function Player(gameObj){
+    this.gameObj = gameObj;
+    this.score;
+    this.hitKeys;
+    this.missedKeys;
+    this.timeToHitKeyList = [];
+
+    // Player settings
+
+    this.lives = 3;
+    this.hitKeyAddScore = 100; // Added score on succesful hit
+    this.missedKeyMinusScore = 50; // Subtracted score on miss
+    this.timerMultiScore = 3; // Score max multiplier for fastest reaction time
+
+    this.PressedKey = function(timeToHitKey, isHit){
+        // Count hit/missed keys
+        if (isHit)
+            hitKeys++;
+        else{
+            missedKeys++;
+            this.lives--;
+            this.lives == 0 ? Game.LoseGame() : null;
+        }
+        
+        // Track how long it takes to hit correct key
+        if (isHit)
+            this.timeToHitKeyList.push(timeToHitKey);
+
+        this.UpdateScore(timeToHitKey, isHit);
+    }
+
+    // Update score according to action
+    this.UpdateScore = function(timeToHitKey, isHit){
+        if (!isHit){
+            this.score -= this.missedKeyMinusScore;
+        }else{
+            this.score += this.hitKeyAddScore * ((1 (timeToHitKey / gameObj.timeToHitKey)) * this.timerMultiScore);
+        }
+    }
+}
+
 /* ==== KEY OBJECT ====*/ 
 
-function Key(letter, element, gameObj){
+function Key(gameObj, letter, element, timeToHitKey){
+    this.gameObj = gameObj;
+    this.timer = timeToHitKey;
     this.letter = letter;
     this.element = element;
-    this.gameObj = gameObj;
     this.isSelected = false;
-    this.timer = 3;
-    this.defaultTransition = 0.2;
     this.timerID;
+
+    // Key settings
+    this.defaultTransition = 0.2;
 
     // On key down
     this.OnPressDown = function(){
@@ -229,31 +281,78 @@ function Key(letter, element, gameObj){
 
 /* ==== TEXT PROMPT OBJECT ====*/ 
 
-function TextPrompt(){
-    this.isTyping = false;
-    this.typePromptInterval = 100;
-    this.element = document.getElementById('textPrompt');
+function TextPrompt(element){
+    this.element = element;
+    this.typingTimeoutIds = [];
+    this.typeInterval = 100;
+    this.deleteInterval = 50;
+
+    // Start typing if empty, or delete then start typing
+    this.EnterText = function(text){
+        if (this.element.innerHTML != ""){
+            // Stop current typing
+            this.ClearTimeouts();
+            // Calculate time to delete current text
+            let timeToDel = this.element.innerHTML.length * this.deleteInterval;
+            // Delete current text
+            this.DeleteText();
+            // Type new text once delete is finished
+            setTimeout(() => {
+                this.TypeText(text);
+            }, timeToDel+100);
+        }
+        else{
+            this.TypeText(text);
+        }
+    }
+
+    // Delete text
+    this.ClearText = function(){
+        // Stop current typing
+        this.ClearTimeouts();
+        // Delete all
+        this.DeleteText();
+    }
 
     // Enter text letter by letter, with an interval
-    this.EnterPromptText = function(text, textIndex=0){
-        if (textIndex == 0)
-            this.isTyping = true;
+    this.TypeText = function(text, textIndex=0){
+        // End of recursion
         if (text.length == textIndex) {
-            this.isTyping = false;
-            return;
-        }
-        if (!this.isTyping){
-            this.element.innerHTML = '';
             return;
         }
 
+        // Add new letter from string to element
         let newText = this.element.innerHTML;
         newText += text[textIndex];
         this.element.innerHTML = newText;
 
+        // Recursion
+        this.typingTimeoutIds.push(setTimeout(() => {
+            this.TypeText(text, textIndex+1, false);
+        }, this.typeInterval));
+        
+    }
+
+    // Delete text letter by letter, with an interval
+    this.DeleteText = function(){
+        clearTimeout(this.typingTimeoutId);
+        let str = this.element.innerHTML;
+        if (str.length == 0) return;
+
+        str = str.slice(0, -1);
+        this.element.innerHTML = str;
+
         setTimeout(() => {
-            this.EnterPromptText(text, textIndex+1);
-        }, this.typePromptInterval);
+            this.DeleteText();
+        }, this.deleteInterval);
+    }
+
+    // Clear all timeouts
+    this.ClearTimeouts = function(){
+        for (i = 0; i < this.typingTimeoutIds.length; i++){
+            clearTimeout(this.typingTimeoutIds[i]);
+        }
+        this.typingTimeoutIds = [];
     }
 }
 
