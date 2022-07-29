@@ -19,7 +19,7 @@ window.addEventListener("load", function(event) {
 function Game(){
     this.playerObj;
     this.utilityObj;
-    this.textPromptObj;
+    this.titleObj;
 
     this.gameRunnning = false;
     this.selectedKeyList = [];
@@ -53,16 +53,20 @@ function Game(){
 
     // Initialize game
     this.Initialize = function(){
-        this.playerObj = new Player(this);
         this.utilityObj = new Utility();
-        this.textPromptObj = new TextPrompt(document.getElementById('textPrompt'));
+        this.titleObj = new TextPrompt(document.getElementById('title'));
+        this.subtitleObj = new TextPrompt(document.getElementById('subtitle'));
+        this.playerObj = new Player(this, this.utilityObj, this.titleObj, this.subtitleObj);
         this.keyElements = document.getElementsByClassName('key');
 
-        this.textPromptObj.EnterText('press enter');
+        this.titleObj.EnterText('Typing Game');
+        this.subtitleObj.EnterText('press enter');
 
         // Create key objects
         for (i = 0; i < this.keyList.length; i++){
             this.keyObjList.push(new Key(this,
+                this.utilityObj,
+                this.playerObj,
                 this.keyList[i], 
                 this.keyList[i] == ' ' ? this.FindKeyElem('SPACE') : this.FindKeyElem(this.keyList[i]),
                 this.timeToHitKey));
@@ -73,7 +77,7 @@ function Game(){
     // whether its on down or up
     this.VerifyInput = function(key, isDown){
         if (key == 'Enter' && isDown)
-            this.gameRunnning == false ? this.StartGame() : this.EndGame();
+            this.gameRunnning == false ? this.StartGame() : this.EndGame(false);
         else if (this.keyList.includes(key) && isDown)
             this.FindKeyObj(key).OnPressDown();
         else if (this.keyList.includes(key) && !isDown)
@@ -83,8 +87,8 @@ function Game(){
     // Reset game, start game loop
     this.StartGame = function(){
         this.ResetKeys();
-        this.textPromptObj.ClearText();
         this.gameRunnning = true;
+        this.playerObj.GameStarted();
 
         // Select new key on interval
         this.intervalID = setInterval(() => {
@@ -92,17 +96,18 @@ function Game(){
         }, this.selectKeyInterval * 1000);
     }
 
-    // Stop game loop on loss
-    this.LoseGame = function(){
+    // Stop game loop
+    this.EndGame = function(isLoss){
         this.gameRunnning = false;
-        this.textPromptObj.EnterText('you lose');
-        clearInterval(this.intervalID);
-    }
+        this.playerObj.GameEnded();
 
-    // Stop game loop on demand
-    this.EndGame = function(){
-        this.gameRunnning = false;
-        this.textPromptObj.EnterText('press enter');
+        if (isLoss)
+            this.titleObj.EnterText('Game Over');
+        else
+            this.titleObj.EnterText('Typing Game');
+
+        this.subtitleObj.EnterText('press enter');
+
         this.ResetKeys();
         clearInterval(this.intervalID);
     }
@@ -144,7 +149,7 @@ function Game(){
 
             for (ind = 0; ind < this.keySectionList.length; ind++){
                 if (this.keySectionList[ind].includes(this.keyObjList[i].letter)){
-                    tempList = this.utilityObj.filterArray(tempList, this.keySectionList[ind])
+                    tempList = this.utilityObj.FilterArray(tempList, this.keySectionList[ind])
                     continue;
                 }
             }
@@ -176,56 +181,97 @@ function Game(){
 
 /* ==== PLAYER OBJECT ====*/
 
-function Player(gameObj){
+function Player(gameObj, utilityObj, titleObj, subtitleObj){
     this.gameObj = gameObj;
-    this.score;
-    this.hitKeys;
-    this.missedKeys;
+    this.utilityObj = utilityObj;
+    this.titleObj = titleObj;
+    this.subtitleObj = subtitleObj;
+
+    this.lives = 0;
+    this.score = 0;
+    this.hitKeys = 0;
+    this.missedKeys = 0;
     this.timeToHitKeyList = [];
 
     // Player settings
 
-    this.lives = 3;
+    this.startingLives = 3; // Amount of lives for player
     this.hitKeyAddScore = 100; // Added score on succesful hit
-    this.missedKeyMinusScore = 50; // Subtracted score on miss
     this.timerMultiScore = 3; // Score max multiplier for fastest reaction time
 
-    this.PressedKey = function(timeToHitKey, isHit){
-        // Count hit/missed keys
-        if (isHit)
-            hitKeys++;
-        else{
-            missedKeys++;
-            this.lives--;
-            this.lives == 0 ? Game.LoseGame() : null;
-        }
+    // Setup on game startup
+    this.GameStarted = function(){
+        this.titleObj.EnterText('0');
+        this.subtitleObj.EnterText('♥♥♥');
         
-        // Track how long it takes to hit correct key
-        if (isHit)
-            this.timeToHitKeyList.push(timeToHitKey);
+        this.lives = this.startingLives;
+        this.score = 0;
+        this.hitKeys = 0;
+        this.missedKeys = 0;
+        this.timeToHitKeyList = [];
+    }
 
-        this.UpdateScore(timeToHitKey, isHit);
+    // Action on game ended
+    this.GameEnded = function(){
+    }
+
+    this.KeyAction = function(isHit, timeToHitKey=0){
+        if (!this.gameObj.gameRunnning) return;
+
+        // Count hit/missed keys
+        if (isHit){
+            // Update counter
+            this.hitKeys++;
+            // Track how long it takes to hit correct key
+            this.timeToHitKeyList.push(timeToHitKey);
+        }
+        else{
+            // Update counters
+            this.missedKeys++;
+            this.lives--;
+            
+            // Update lifes text
+            this.subtitleObj.EnterText(('♥').repeat(this.lives));
+            this.utilityObj.PlayAnimation(this.subtitleObj.element, 'shake', '0.3');
+            
+
+            this.lives <= 0 ? this.gameObj.EndGame(true) : null;
+        }
+
+        this.UpdateScore(isHit, timeToHitKey);
     }
 
     // Update score according to action
-    this.UpdateScore = function(timeToHitKey, isHit){
-        if (!isHit){
-            this.score -= this.missedKeyMinusScore;
-        }else{
-            this.score += this.hitKeyAddScore * ((1 (timeToHitKey / gameObj.timeToHitKey)) * this.timerMultiScore);
+    this.UpdateScore = function(isHit, timeToHitKey=0){
+        if (!this.gameObj.gameRunnning) return;
+
+        // Add score if hit correct key
+        // Multiply score depending on how fast key was pressed
+        if (isHit){
+            this.score += Math.floor(this.hitKeyAddScore * ((1 - (timeToHitKey / this.gameObj.timeToHitKey)) * this.timerMultiScore));
         }
+
+        // Update score text
+        this.titleObj.EnterText('' + this.score);
+
+        // Animation for adding to score
+        this.utilityObj.PlayAnimation(this.titleObj.element, 'scoreAdded', '0.5', 'ease-in-out');
     }
 }
 
 /* ==== KEY OBJECT ====*/ 
 
-function Key(gameObj, letter, element, timeToHitKey){
+function Key(gameObj, utilityObj, playerObj, letter, element, timeToHitKey){
     this.gameObj = gameObj;
-    this.timer = timeToHitKey;
+    this.utilityObj = utilityObj;
+    this.playerObj = playerObj;
+    this.timeToHitKey = timeToHitKey;
     this.letter = letter;
     this.element = element;
     this.isSelected = false;
-    this.timerID;
+
+    this.timer = 0;
+    this.timeoutID;
 
     // Key settings
     this.defaultTransition = 0.2;
@@ -236,7 +282,15 @@ function Key(gameObj, letter, element, timeToHitKey){
 
         // Check if can deselect key
         if (this.isSelected){
-            this.DeselectKey();
+            this.DeselectKey(true);
+
+            // Animation for key hit when selected
+            this.utilityObj.PlayAnimation(this.element, 'correctKeyAnim', '0.4', 'ease-in-out');
+        }else{
+            this.playerObj.KeyAction(false);
+
+            // Animation for key hit when not selected
+            this.utilityObj.PlayAnimation(this.element, 'incorrectKeyAnim', '0.4', 'ease-in-out');
         }
     }
 
@@ -249,33 +303,46 @@ function Key(gameObj, letter, element, timeToHitKey){
     this.SelectKey = function(){
         this.isSelected = true;
 
-        this.element.style.transition = this.timer + 's ease-out';
+        this.element.style.transition = this.timeToHitKey + 's ease-out';
         this.element.classList.add('selected');
         // Start timer
         this.StartTimer()
     }
 
     // Deselect key
-    this.DeselectKey = function(){
+    this.DeselectKey = function(isOnTime){
         this.isSelected = false;
 
         this.element.style.transition = this.defaultTransition + 's ease-out';
         this.element.classList.remove('selected');
-        this.element.classList.remove('lossResult');
+        
         // Cancel timer
-        clearTimeout(this.timerID)
+        clearTimeout(this.timeoutID)
+
+        if (isOnTime == null)
+            return;
+
+        // Communicate with player depending on outcome
+        if (isOnTime){
+            this.playerObj.KeyAction(true, (Date.now() - this.timer) / 1000);
+        }else{
+            // Animation for key not getting hit on time
+            this.utilityObj.PlayAnimation(this.element, 'incorrectKeyAnim', '0.4', 'ease-in-out');
+
+            this.playerObj.KeyAction(false);
+        }
     }   
 
     // Start timer after being selected
     // Lose game if key is still selected after timer ends
     this.StartTimer = function(){
         _this = this;
-        this.timerID = setTimeout(() => {
+        this.timeoutID = setTimeout(() => {
             if (this.isSelected && this.gameObj.gameRunnning){
-                this.gameObj.LoseGame();
-                this.element.classList.add('lossResult');
+                this.DeselectKey(false);
             }
-        }, this.timer * 1000);
+        }, this.timeToHitKey * 1000);
+        this.timer = Date.now();
     }
 }
 
@@ -284,67 +351,42 @@ function Key(gameObj, letter, element, timeToHitKey){
 function TextPrompt(element){
     this.element = element;
     this.typingTimeoutIds = [];
-    this.typeInterval = 100;
-    this.deleteInterval = 50;
+    this.typeInterval = 80;
 
     // Start typing if empty, or delete then start typing
     this.EnterText = function(text){
-        if (this.element.innerHTML != ""){
-            // Stop current typing
-            this.ClearTimeouts();
-            // Calculate time to delete current text
-            let timeToDel = this.element.innerHTML.length * this.deleteInterval;
-            // Delete current text
-            this.DeleteText();
-            // Type new text once delete is finished
-            setTimeout(() => {
-                this.TypeText(text);
-            }, timeToDel+100);
-        }
-        else{
-            this.TypeText(text);
-        }
-    }
-
-    // Delete text
-    this.ClearText = function(){
         // Stop current typing
         this.ClearTimeouts();
-        // Delete all
-        this.DeleteText();
+
+        this.TypeText(text, this.element.innerHTML.length >= text.length ? this.element.innerHTML.length : text.length);
     }
 
     // Enter text letter by letter, with an interval
-    this.TypeText = function(text, textIndex=0){
+    // If text is already present, replace
+    this.TypeText = function(text, loop, curIndex=0){
         // End of recursion
-        if (text.length == textIndex) {
-            return;
+        if (loop <= 0) return;
+ 
+        // If targetting index that the element does not have, add to it
+        // Otherwise, replace at index
+        let str = this.element.innerHTML;
+        if (curIndex >= str.length){
+            str += curIndex >= text.length ? '&#8203' : text[curIndex];
+        }else{
+            str = setCharAt(str, curIndex, curIndex >= text.length ? '&#8203' : text[curIndex]);
         }
 
-        // Add new letter from string to element
-        let newText = this.element.innerHTML;
-        newText += text[textIndex];
-        this.element.innerHTML = newText;
+        // Update text
+        this.element.innerHTML = str;
+
+        // Update counters
+        loop--;
+        curIndex++;
 
         // Recursion
         this.typingTimeoutIds.push(setTimeout(() => {
-            this.TypeText(text, textIndex+1, false);
+            this.TypeText(text, loop, curIndex);
         }, this.typeInterval));
-        
-    }
-
-    // Delete text letter by letter, with an interval
-    this.DeleteText = function(){
-        clearTimeout(this.typingTimeoutId);
-        let str = this.element.innerHTML;
-        if (str.length == 0) return;
-
-        str = str.slice(0, -1);
-        this.element.innerHTML = str;
-
-        setTimeout(() => {
-            this.DeleteText();
-        }, this.deleteInterval);
     }
 
     // Clear all timeouts
@@ -354,16 +396,29 @@ function TextPrompt(element){
         }
         this.typingTimeoutIds = [];
     }
+
+    // Replace char in string
+    function setCharAt(str,index,chr) {
+        if(index > str.length-1) return str;
+        return str.substring(0,index) + chr + str.substring(index+1);
+    }
 }
 
 /* ==== UTILITY OBJECT ====*/ 
 
 function Utility(){
     // Filter array from another
-    this.filterArray = function(arr1, arr2){
+    this.FilterArray = function(arr1, arr2){
         const filtered = arr1.filter(el => {
         return arr2.indexOf(el) === -1;
         });
         return filtered;
     };
+
+    // Play animation
+    this.PlayAnimation = function(element, animName, time, animSetting=''){
+        element.style.animation = '';
+        element.offsetWidth;
+        element.style.animation = animName + ' ' + ( animSetting == '' ? '' : (animSetting + ' ')) + time + 's';
+    }
 }
