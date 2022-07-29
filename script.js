@@ -4,9 +4,14 @@ window.addEventListener("load", function(event) {
     var gameObj = new Game();
     gameObj.Initialize();
 
+    var commandObj = new Command(gameObj);
+
     /* ==== GET KEY AND SEND TO GAME ====*/ 
     document.onkeydown = function (e) {
+        
         gameObj.VerifyInput(e.key, true);
+            
+        commandObj.CheckForCommand(e.key);
     };
 
     document.onkeyup = function (e) {
@@ -26,10 +31,22 @@ function Game(){
     this.keyObjList = [];
     this.keyElements;
     this.intervalID;
+    this.selectKeyInterval;
+    this.selectKeyIntervalMax;
+    this.selectKeyIntervalMin;
+    this.selectKeyIntervalSub;
+    this.gameDifficulty = 'easy';
 
     // Game settings
     this.timeToHitKey = 3;
-    this.selectKeyInterval = 1;
+    
+    this.selectKeyIntervalMaxEasy = 1;
+    this.selectKeyIntervalMinEasy = 0.6;
+    this.selectKeyIntervalSubEasy = 0.01;
+
+    this.selectKeyIntervalMaxHard = 0.8;
+    this.selectKeyIntervalMinHard = 0.4;
+    this.selectKeyIntervalSubHard = 0.02;
 
     // ALl keys
     this.keyList = [
@@ -89,20 +106,30 @@ function Game(){
         this.ResetKeys();
         this.gameRunnning = true;
         this.playerObj.GameStarted();
+        this.playerObj.DisplayStats(false);
+        document.getElementById('helpHint').style.visibility = 'hidden';
 
-        // Select new key on interval
-        this.intervalID = setInterval(() => {
-            this.SelectRandomKey();
-        }, this.selectKeyInterval * 1000);
+        // Select difficult
+        this.selectKeyIntervalMax = this.gameDifficulty == 'easy' ? this.selectKeyIntervalMaxEasy : this.selectKeyIntervalMaxHard;
+        this.selectKeyIntervalMin = this.gameDifficulty == 'easy' ? this.selectKeyIntervalMinEasy : this.selectKeyIntervalMinHard;
+        this.selectKeyIntervalSub = this.gameDifficulty == 'easy' ? this.selectKeyIntervalSubEasy : this.selectKeyIntervalSubHard;
+
+        this.selectKeyInterval = this.selectKeyIntervalMax;
+    
+        // Start selecting keys
+        this.SelectRandomKey();
     }
 
     // Stop game loop
     this.EndGame = function(isLoss){
         this.gameRunnning = false;
         this.playerObj.GameEnded();
+        document.getElementById('helpHint').style.visibility = 'visible';
 
-        if (isLoss)
+        if (isLoss){
             this.titleObj.EnterText('Game Over');
+            this.playerObj.DisplayStats(true);
+        }
         else
             this.titleObj.EnterText('Typing Game');
 
@@ -139,6 +166,14 @@ function Game(){
         // Select random key  
         let selKey = newKeyList[Math.floor(Math.random() * newKeyList.length)];
         this.FindKeyObj(selKey).SelectKey();
+
+        // Repeat on interval, change interval to increase difficulty
+        if ((this.selectKeyInterval - this.selectKeyIntervalSub) > this.selectKeyIntervalMin)
+            this.selectKeyInterval = (this.selectKeyInterval - this.selectKeyIntervalSub);
+
+        this.intervalID = setTimeout(() => {
+            this.SelectRandomKey();
+        }, this.selectKeyInterval * 1000);
     }
 
     // Returns list of valid keys that can be selected
@@ -179,6 +214,70 @@ function Game(){
     }
 }
 
+/* ==== COMMANDS OBJECT ====*/
+
+function Command(gameObj){
+    this.gameObj = gameObj;
+    this.utilityObj = new Utility();
+    this.modal = document.getElementById('myModal');
+    this.letterList = '';
+    this.commandList = [
+        'help',
+        'easy',
+        'hard'
+    ]
+
+    this.CheckForCommand = function(letter){
+        if (gameObj.gameRunnning) return;
+
+        // Close modal on escape
+        if (letter == 'Escape'){
+            this.modal.style.display = 'none';
+        }
+        
+        // Select command based on what is typed
+        this.letterList += letter;
+        for (i = this.commandList.length-1; i > -1; i--){
+            let commandStr = this.commandList[i];
+
+            if (commandStr.charAt(commandStr.length-1) == letter){
+                let command = this.letterList.slice(this.letterList.length - commandStr.length, this.letterList.length);
+
+                if (commandStr == command){
+                    this.FindCommand(commandStr);
+                    return;
+                }
+            }
+        }
+    }
+
+    // Find command that was typed
+    this.FindCommand = function(command){
+        switch (command){
+            case 'help':
+                this.HelpCommand();
+                break;
+            case 'easy':
+                this.ChangeDifficulty('easy');
+                break;
+            case 'hard':
+                this.ChangeDifficulty('hard');
+                break;
+        }
+    }
+
+    // Help command to display other commands
+    this.HelpCommand = function(){
+        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard', 5);
+    }
+
+    // Change difficulty of game
+    this.ChangeDifficulty = function(difficulty){
+        this.gameObj.gameDifficulty = difficulty;
+        this.utilityObj.Toast('Difficulty set to ' + difficulty, 3);
+    }
+}
+
 /* ==== PLAYER OBJECT ====*/
 
 function Player(gameObj, utilityObj, titleObj, subtitleObj){
@@ -195,20 +294,20 @@ function Player(gameObj, utilityObj, titleObj, subtitleObj){
 
     // Player settings
 
-    this.startingLives = 3; // Amount of lives for player
+    this.startingLives = 5; // Amount of lives for player
     this.hitKeyAddScore = 100; // Added score on succesful hit
     this.timerMultiScore = 3; // Score max multiplier for fastest reaction time
 
     // Setup on game startup
     this.GameStarted = function(){
-        this.titleObj.EnterText('0');
-        this.subtitleObj.EnterText('♥♥♥');
-        
         this.lives = this.startingLives;
         this.score = 0;
         this.hitKeys = 0;
         this.missedKeys = 0;
         this.timeToHitKeyList = [];
+
+        this.titleObj.EnterText('0');
+        this.subtitleObj.EnterText(('♥').repeat(this.lives));
     }
 
     // Action on game ended
@@ -243,19 +342,50 @@ function Player(gameObj, utilityObj, titleObj, subtitleObj){
 
     // Update score according to action
     this.UpdateScore = function(isHit, timeToHitKey=0){
-        if (!this.gameObj.gameRunnning) return;
+        if (!this.gameObj.gameRunnning || !isHit) return;
 
         // Add score if hit correct key
         // Multiply score depending on how fast key was pressed
-        if (isHit){
-            this.score += Math.floor(this.hitKeyAddScore * ((1 - (timeToHitKey / this.gameObj.timeToHitKey)) * this.timerMultiScore));
-        }
-
+        this.score += Math.floor(this.hitKeyAddScore * ((1 - (timeToHitKey / this.gameObj.timeToHitKey)) * this.timerMultiScore));
+        
         // Update score text
         this.titleObj.EnterText('' + this.score);
 
         // Animation for adding to score
         this.utilityObj.PlayAnimation(this.titleObj.element, 'scoreAdded', '0.5', 'ease-in-out');
+    }
+
+    this.DisplayStats = function(isDisplaying){
+        // Choose to display or not display stats
+        let statContainer = document.getElementById('statsContainer');
+
+        if (isDisplaying){
+            this.utilityObj.PlayAnimation(statContainer, 'fadeIn', 0.5, 'ease-in-out');
+            setTimeout(() => {
+                statContainer.style.opacity = 1;
+            }, 500);
+        }else{
+            if (statContainer.style.opacity == 0) return;
+            this.utilityObj.PlayAnimation(statContainer, 'fadeOut', 0.5, 'ease-in-out');
+            setTimeout(() => {
+                statContainer.style.opacity = 0;
+            }, 500);
+            return;
+        }
+
+        // Enter stats 
+        let statElm = document.getElementsByClassName('statsItem');
+
+        statElm[0].innerHTML = this.score;
+        statElm[1].innerHTML = this.hitKeys;
+        statElm[2].innerHTML = this.missedKeys;
+
+        let sum = 0;
+        for (let num of this.timeToHitKeyList){
+            sum += num;
+        }
+        sum = sum == 0 ? 0 : (sum / this.timeToHitKeyList.length).toFixed(2);
+        statElm[3].innerHTML = sum + 's/key';
     }
 }
 
@@ -280,6 +410,7 @@ function Key(gameObj, utilityObj, playerObj, letter, element, timeToHitKey){
     this.OnPressDown = function(){
         this.element.classList.add('pressed');
 
+        if (!gameObj.gameRunnning) return;
         // Check if can deselect key
         if (this.isSelected){
             this.DeselectKey(true);
@@ -407,6 +538,8 @@ function TextPrompt(element){
 /* ==== UTILITY OBJECT ====*/ 
 
 function Utility(){
+    this.toastTimeoutId;
+
     // Filter array from another
     this.FilterArray = function(arr1, arr2){
         const filtered = arr1.filter(el => {
@@ -420,5 +553,19 @@ function Utility(){
         element.style.animation = '';
         element.offsetWidth;
         element.style.animation = animName + ' ' + ( animSetting == '' ? '' : (animSetting + ' ')) + time + 's';
+    }
+
+    this.Toast = function(str, timeToShow){
+        var snackbarElm = document.getElementById("snackbar");
+
+        clearTimeout(this.toastTimeoutId);
+        snackbarElm.innerHTML = str;
+        this.PlayAnimation(snackbarElm, 'fadein 0.5s, fadeout 0.5s', timeToShow-0.5);
+        snackbarElm.style.visibility = 'visible';
+
+        this.toastTimeoutId = setTimeout(() => 
+        {
+            snackbarElm.style.visibility = 'hidden';
+        }, timeToShow * 1000);
     }
 }

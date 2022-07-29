@@ -3,15 +3,7 @@ body{
     color: white;
 }
 
-#textPrompt{
-    position: absolute;
-    left: 50%;
-    top: 100px;
-    transform: translateX(-50%);
-    text-align: center;
-    font-size: 100px;
-    font-weight: bold;
-}
+/* ===== Titles ====*/
 
 #titleContainer{
     width: 800px;
@@ -34,6 +26,8 @@ body{
     font-size: 50px !important;
     font-weight: normal !important;
 }
+
+/* ===== Keyboard ====*/
 
 #keyboard{
     position: absolute;
@@ -78,6 +72,8 @@ body{
     transition: 0s ease-out;
 }
 
+/* ===== Key States ====*/
+
 .selected{
     background-position: bottom !important;
     
@@ -88,6 +84,82 @@ body{
 
 .pressed{
     transform: translateY(12px) !important;
+}
+
+/* ===== Stats ====*/
+
+#statsContainer{
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 20px;
+    width: 500px;
+    position: absolute;
+    left: 50%;
+    bottom: 150px;
+    transform: translateX(-50%);
+    font-size: 25px;
+
+    border-left: 1px white solid;
+    border-right: 1px white solid;
+}
+
+.statsSubContainer{
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ===== Snackbar ====*/
+  
+#snackbar {
+    visibility: hidden; 
+    min-width: 250px; 
+    margin-left: -125px; 
+    background-color: #333; 
+    color: #fff; 
+    text-align: center; 
+    border-radius: 2px; 
+    padding: 16px; 
+    position: fixed; 
+    z-index: 1; 
+    left: 50%; 
+    bottom: 30px; 
+    font-size: 25px;
+}
+
+/* ===== Other ====*/
+
+#helpHint{
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 50px;
+    font-size: 35px;
+    color: rgba(255, 255, 255, 0.200);
+}
+
+/* ==== Animations ====*/
+
+/* Animations to fade the snackbar in and out */
+@-webkit-keyframes fadein {
+    from {bottom: 0; opacity: 0;}
+    to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+    from {bottom: 0; opacity: 0;}
+    to {bottom: 30px; opacity: 1;}
+}
+
+@-webkit-keyframes fadeout {
+    from {bottom: 30px; opacity: 1;}
+    to {bottom: 0; opacity: 0;}
+}
+
+@keyframes fadeout {
+    from {bottom: 30px; opacity: 1;}
+    to {bottom: 0; opacity: 0;}
 }
 
 @keyframes selectedKeyAnim {
