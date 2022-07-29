@@ -224,8 +224,12 @@ function Command(gameObj){
     this.commandList = [
         'help',
         'easy',
-        'hard'
+        'hard',
+        'credits',
+        'flip'
     ]
+
+    this.isFlipped = false;
 
     this.CheckForCommand = function(letter){
         if (gameObj.gameRunnning) return;
@@ -263,18 +267,40 @@ function Command(gameObj){
             case 'hard':
                 this.ChangeDifficulty('hard');
                 break;
+            case 'credits':
+                this.Credits();
+                break;
+            case 'flip':
+                this.Flip();
+                break;
         }
     }
 
     // Help command to display other commands
     this.HelpCommand = function(){
-        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard', 5);
+        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard<br>Credits: See my name<br>Flip: Do a flip!', 5);
     }
 
     // Change difficulty of game
     this.ChangeDifficulty = function(difficulty){
         this.gameObj.gameDifficulty = difficulty;
         this.utilityObj.Toast('Difficulty set to ' + difficulty, 3);
+    }
+
+    // Display credits
+    this.Credits = function(){
+        this.gameObj.titleObj.EnterText('Adrian Piwin');
+        this.gameObj.subtitleObj.EnterText('I made this :)');
+    }
+
+    // Flip the keyboard
+    this.Flip = function(){
+        let keyboard = document.getElementById('keyboard');
+        this.isFlipped = !this.isFlipped;
+        if (this.isFlipped)
+            keyboard.style.transform = 'scaleY(-1) scaleX(-1) translate(50%, 50%)';
+        else
+            keyboard.style.transform = 'translate(-50%, -50%)';
     }
 }
 
