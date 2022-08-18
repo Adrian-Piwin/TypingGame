@@ -5,6 +5,7 @@ window.addEventListener("load", function(event) {
     gameObj.Initialize();
 
     var commandObj = new Command(gameObj);
+    gameObj.commandObj = commandObj;
 
     /* ==== GET KEY AND SEND TO GAME ====*/ 
     document.onkeydown = function (e) {
@@ -25,6 +26,7 @@ function Game(){
     this.playerObj;
     this.utilityObj;
     this.titleObj;
+    this.commandObj;
 
     this.gameRunnning = false;
     this.selectedKeyList = [];
@@ -226,10 +228,13 @@ function Command(gameObj){
         'easy',
         'hard',
         'credits',
-        'flip'
+        'flip',
+        'light',
+        'dark'
     ]
 
     this.isFlipped = false;
+    this.lightMode = false;
 
     this.CheckForCommand = function(letter){
         if (gameObj.gameRunnning) return;
@@ -273,12 +278,18 @@ function Command(gameObj){
             case 'flip':
                 this.Flip();
                 break;
+            case 'light':
+                this.Light();
+                break
+            case 'dark':
+                this.Dark();
+                break;
         }
     }
 
     // Help command to display other commands
     this.HelpCommand = function(){
-        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard<br>Credits: See my name<br>Flip: Do a flip!', 5);
+        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard<br>Light: Let there be light!<br>Dark: The better look<br>Credits: See my name<br>Flip: Do a flip!', 5);
     }
 
     // Change difficulty of game
@@ -301,6 +312,46 @@ function Command(gameObj){
             keyboard.style.transform = 'scaleY(-1) scaleX(-1) translate(50%, 50%)';
         else
             keyboard.style.transform = 'translate(-50%, -50%)';
+    }
+
+    // Light mode
+    this.Light = function(){
+        let body = document.body;
+        let titleContainer = document.getElementById('titleContainer');
+        let keys = document.getElementsByClassName('key');
+        let statsContainer = document.getElementById('statsContainer');
+
+        body.style.backgroundColor = "white";
+        body.style.color = "black";
+
+        titleContainer.style.borderColor = "black";
+        for (i=0; i<keys.length; i++)
+            keys[i].style.borderColor = "black";
+
+        statsContainer.style.borderLeftColor = "black";
+        statsContainer.style.borderRightColor = "black";
+
+        this.lightMode = true;
+    }
+
+    // Dark mode
+    this.Dark = function(){
+        let body = document.body;
+        let titleContainer = document.getElementById('titleContainer');
+        let keys = document.getElementsByClassName('key');
+        let statsContainer = document.getElementById('statsContainer');
+
+        body.style.backgroundColor = "black";
+        body.style.color = "white";
+
+        titleContainer.style.borderColor = "white";
+        for (i=0; i<keys.length; i++)
+            keys[i].style.borderColor = "white";
+
+        statsContainer.style.borderLeftColor = "white";
+        statsContainer.style.borderRightColor = "white";
+
+        this.lightMode = false;
     }
 }
 
@@ -442,12 +493,13 @@ function Key(gameObj, utilityObj, playerObj, letter, element, timeToHitKey){
             this.DeselectKey(true);
 
             // Animation for key hit when selected
-            this.utilityObj.PlayAnimation(this.element, 'correctKeyAnim', '0.4', 'ease-in-out');
+            console.log(gameObj.commandObj.lightMode);
+            this.utilityObj.PlayAnimation(this.element, gameObj.commandObj.lightMode == true ? 'correctKeyAnimLight' : 'correctKeyAnim', '0.4', 'ease-in-out');
         }else{
             this.playerObj.KeyAction(false);
 
             // Animation for key hit when not selected
-            this.utilityObj.PlayAnimation(this.element, 'incorrectKeyAnim', '0.4', 'ease-in-out');
+            this.utilityObj.PlayAnimation(this.element, gameObj.commandObj.lightMode == true ? 'incorrectKeyAnimLight' : 'incorrectKeyAnim', '0.4', 'ease-in-out');
         }
     }
 
@@ -484,7 +536,7 @@ function Key(gameObj, utilityObj, playerObj, letter, element, timeToHitKey){
             this.playerObj.KeyAction(true, (Date.now() - this.timer) / 1000);
         }else{
             // Animation for key not getting hit on time
-            this.utilityObj.PlayAnimation(this.element, 'incorrectKeyAnim', '0.4', 'ease-in-out');
+            this.utilityObj.PlayAnimation(this.element, gameObj.commandObj.lightMode == true ? 'incorrectKeyAnimLight' : 'incorrectKeyAnim', '0.4', 'ease-in-out');
 
             this.playerObj.KeyAction(false);
         }
