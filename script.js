@@ -309,9 +309,9 @@ function Command(gameObj){
         let keyboard = document.getElementById('keyboard');
         this.isFlipped = !this.isFlipped;
         if (this.isFlipped)
-            keyboard.style.transform = 'scaleY(-1) scaleX(-1) translate(50%, 50%)';
+            keyboard.style.transform = 'scaleY(-1) scaleX(-1)';
         else
-            keyboard.style.transform = 'translate(-50%, -50%)';
+            keyboard.style.transform = 'scaleY(1) scaleX(1)';
     }
 
     // Light mode
