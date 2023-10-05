@@ -142,6 +142,16 @@ body{
     color: rgba(255, 255, 255, 0.200);
 }
 
+#pigImg{
+    width: 500px;
+    height: 500px;
+    opacity: 0;
+    position: absolute;
+    bottom: 50%;
+    right: 0;
+    transform: translatey(50%);
+}
+
 /* ==== Animations ====*/
 
 /* Animations to fade the snackbar in and out */

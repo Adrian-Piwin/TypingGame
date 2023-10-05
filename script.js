@@ -230,7 +230,9 @@ function Command(gameObj){
         'credits',
         'flip',
         'light',
-        'dark'
+        'dark',
+        'kayla',
+        'pig'
     ]
 
     this.isFlipped = false;
@@ -284,12 +286,18 @@ function Command(gameObj){
             case 'dark':
                 this.Dark();
                 break;
+            case 'kayla':
+                this.Kayla();
+                break;
+            case 'pig':
+                this.Pig();
+                break;
         }
     }
 
     // Help command to display other commands
     this.HelpCommand = function(){
-        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard<br>Light: Let there be light!<br>Dark: The better look<br>Credits: See my name<br>Flip: Do a flip!', 5);
+        this.utilityObj.Toast('Command List<br>Easy: Set difficulty to easy<br>Hard: Set difficulty to hard<br>Light: Let there be light!<br>Dark: The better look<br>Credits: See my name<br>Flip: Do a flip!<br>Pig: Pig', 5);
     }
 
     // Change difficulty of game
@@ -306,12 +314,18 @@ function Command(gameObj){
 
     // Flip the keyboard
     this.Flip = function(){
-        let keyboard = document.getElementById('keyboard');
         this.isFlipped = !this.isFlipped;
-        if (this.isFlipped)
+
+        let keyboard = document.getElementById('keyboard');
+        let pigImg = document.getElementById('pigImg');
+        if (this.isFlipped){
             keyboard.style.transform = 'scaleY(-1) scaleX(-1)';
-        else
+            pigImg.style.transform = 'scaleY(-1) scaleX(-1)';
+        }
+        else{
             keyboard.style.transform = 'scaleY(1) scaleX(1)';
+            pigImg.style.transform = 'scaleY(1) scaleX(1)';
+        }
     }
 
     // Light mode
@@ -352,6 +366,35 @@ function Command(gameObj){
         statsContainer.style.borderRightColor = "white";
 
         this.lightMode = false;
+    }
+
+    // Kayla mode
+    this.Kayla = function(){
+        let body = document.body;
+        let titleContainer = document.getElementById('titleContainer');
+        let keys = document.getElementsByClassName('key');
+        let statsContainer = document.getElementById('statsContainer');
+
+        body.style.backgroundColor = "black";
+        body.style.color = "pink";
+
+        titleContainer.style.borderColor = "pink";
+        for (i=0; i<keys.length; i++)
+            keys[i].style.borderColor = "pink";
+
+        statsContainer.style.borderLeftColor = "pink";
+        statsContainer.style.borderRightColor = "pink";
+
+        this.lightMode = false;
+
+        this.gameObj.titleObj.EnterText('I love kayla!!');
+        this.gameObj.subtitleObj.EnterText('♥♥♥♥♥♥♥♥♥♥');
+    }
+
+    // Pig mode
+    this.Pig = function(){
+        let pigImg = document.getElementById('pigImg');
+        pigImg.style.opacity = pigImg.style.opacity == 1 ? 0 : 1;
     }
 }
 
@@ -493,7 +536,6 @@ function Key(gameObj, utilityObj, playerObj, letter, element, timeToHitKey){
             this.DeselectKey(true);
 
             // Animation for key hit when selected
-            console.log(gameObj.commandObj.lightMode);
             this.utilityObj.PlayAnimation(this.element, gameObj.commandObj.lightMode == true ? 'correctKeyAnimLight' : 'correctKeyAnim', '0.4', 'ease-in-out');
         }else{
             this.playerObj.KeyAction(false);
